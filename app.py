@@ -297,7 +297,7 @@ LEADERBOARD_HTML = """
       margin-top: 3vh;
     }
     .qr-hint .qr-label {
-      font-size: clamp(23px, 1.1vw, 18px);
+      font-size: clamp(13px, 1.1vw, 18px);
       color: white;
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -410,8 +410,24 @@ SUBMIT_HTML = """
       background: rgba(255,255,255,0.06); color: white; font-size: 18px; font-family: 'Jost', system-ui, sans-serif; font-weight: 600;
     }
     input[type=file] {
-      width: 100%; padding: 14px 0; color: #cbd5f5; font-size: 15px;
+      display: none;
     }
+    .photo-btn {
+      display: block;
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+      color: white;
+      font-family: 'Jost', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: center;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+    #photo-filename { color: #cbd5f5; }
     .hint { font-size: 12px; color: #7f8fc2; margin-top: 6px; }
     button {
       width: 100%; margin-top: 28px; padding: 16px; border: none; border-radius: 999px;
@@ -442,8 +458,10 @@ SUBMIT_HTML = """
         <input type="number" name="score" step="1" min="{{ min_score }}" max="{{ max_score }}" required placeholder="e.g. 42" value="{{ old_score or '' }}">
         <div class="hint">Enter the number of hits shown on the Batak screen.</div>
 
-        <label>Photo of your score (recommended)</label>
-        <input type="file" name="photo" accept="image/*" capture="environment">
+        <label>Photo of your score</label>
+        <label for="photo-input" class="photo-btn">📷 Take Photo</label>
+        <input type="file" id="photo-input" name="photo" accept="image/*" capture="environment" onchange="document.getElementById('photo-filename').textContent = this.files.length ? this.files[0].name : '';">
+        <div class="hint" id="photo-filename"></div>
         <div class="hint">Snap the Batak screen so we can verify it if needed.</div>
 
         <button type="submit">Submit score</button>
