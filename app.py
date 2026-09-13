@@ -134,10 +134,11 @@ LEADERBOARD_HTML = """
       position: relative;
       width: 100vw;
       height: 100vh;
-      background:
-        radial-gradient(circle at 15% 10%, rgba(220,7,20,0.35), transparent 40%),
-        radial-gradient(circle at 85% 90%, rgba(0,52,120,0.5), transparent 45%),
-        linear-gradient(160deg, #040816 0%, #0b1636 55%, #150316 100%);
+      background-image: url("{{ url_for('static', filename='bg_full.png') }}");
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-color: #050a1a;
       color: white;
       overflow: hidden;
     }
@@ -150,19 +151,6 @@ LEADERBOARD_HTML = """
       opacity: 0.9;
       z-index: 6;
     }
-    .bg-logo {
-      position: absolute;
-      left: -6%;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 120vh;
-      width: auto;
-      max-width: none;
-      opacity: 0.5;
-      z-index: 1;
-      pointer-events: none;
-      filter: drop-shadow(0 30px 70px rgba(0,0,0,0.7));
-    }
     @keyframes textShimmer {
       0%   { background-position: -120% 0; }
       100% { background-position: 220% 0; }
@@ -170,14 +158,14 @@ LEADERBOARD_HTML = """
     .header {
       position: relative;
       z-index: 6;
-      width: min(74vw, 1350px);
-      margin: 0 4vw 0 auto;
+      width: min(90vw, 1800px);
+      margin: 0 auto;
       text-align: center;
-      padding-top: 7vh;
+      padding-top: 2.5vh;
     }
     .header .title {
       font-family: 'Jost', sans-serif; font-weight: 600;
-      margin-top: 0.6vh;
+      margin-top: 0.2vh;
       font-size: clamp(38px, 6vw, 88px);
       letter-spacing: 0.08em;
       text-transform: uppercase;
@@ -193,7 +181,7 @@ LEADERBOARD_HTML = """
     }
     .subtitle {
       font-family: 'Jost', sans-serif; font-weight: 600;
-      margin-top: 0.5vh;
+      margin-top: 0.2vh;
       font-size: clamp(16px, 1.6vw, 26px);
       letter-spacing: 0.15em;
       text-transform: uppercase;
@@ -206,14 +194,31 @@ LEADERBOARD_HTML = """
       color: transparent;
       animation: textShimmer 8s linear infinite;
     }
-    .board {
+    .columns {
       position: relative;
       z-index: 6;
-      margin: 3vh 4vw 0 auto;
-      width: min(74vw, 1350px);
+      display: flex;
+      justify-content: space-between;
+      margin: 2vh 4vw 0 4vw;
+    }
+    .col-left {
+      width: 36vw;
       display: flex;
       flex-direction: column;
-      gap: 1vh;
+      gap: 1.6vh;
+    }
+    #board-top3 {
+      display: flex;
+      flex-direction: column;
+      gap: 1.6vh;
+    }
+    .col-right {
+      width: 34vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3vh;
+      padding-bottom: 6vh;
+      box-sizing: border-box;
     }
     @keyframes rowEmphasize {
       0%   { transform: scale(1); filter: brightness(1); box-shadow: none; }
@@ -224,8 +229,8 @@ LEADERBOARD_HTML = """
     .row {
       display: flex;
       align-items: center;
-      gap: 2vw;
-      padding: 1.1vh 2vw;
+      gap: 1.6vw;
+      padding: 0.4vh 1.6vw;
       border-radius: 999px;
       background: rgba(4, 8, 20, 0.72);
       border: 1px solid rgba(255,255,255,0.1);
@@ -234,16 +239,23 @@ LEADERBOARD_HTML = """
       transform-origin: center;
       animation: rowEmphasize 7s ease-in-out infinite;
     }
+    .row.row-empty { animation: none; opacity: 0.45; }
+    .row.rank-1, .row.rank-2, .row.rank-3 {
+      padding: 1.8vh 2vw;
+    }
     .row.rank-1 { background: linear-gradient(90deg, rgba(255,215,80,0.32), rgba(4,8,20,0.72)); border-color: rgba(255,215,80,0.55); }
     .row.rank-2 { background: linear-gradient(90deg, rgba(210,210,220,0.28), rgba(4,8,20,0.72)); border-color: rgba(210,210,220,0.45); }
     .row.rank-3 { background: linear-gradient(90deg, rgba(205,140,80,0.3), rgba(4,8,20,0.72)); border-color: rgba(205,140,80,0.5); }
     .rank {
-      width: 3.2vw;
-      min-width: 44px;
+      width: 2.8vw;
+      min-width: 32px;
       font-family: 'Jost', sans-serif; font-weight: 600;
-      font-size: clamp(18px, 2.2vw, 32px);
+      font-size: clamp(13px, 1.3vw, 20px);
       color: #ff2436;
       text-align: center;
+    }
+    .row.rank-1 .rank, .row.rank-2 .rank, .row.rank-3 .rank {
+      font-size: clamp(26px, 3.4vw, 52px);
     }
     .row.rank-1 .rank { color: #ffd750; }
     .row.rank-2 .rank { color: #d2d2dc; }
@@ -251,7 +263,7 @@ LEADERBOARD_HTML = """
     .pname {
       flex: 1;
       font-weight: 600;
-      font-size: clamp(18px, 2.3vw, 34px);
+      font-size: clamp(13px, 1.3vw, 20px);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -259,10 +271,14 @@ LEADERBOARD_HTML = """
     .pscore {
       font-variant-numeric: tabular-nums;
       font-weight: 600;
-      font-size: clamp(18px, 2.3vw, 34px);
+      font-size: clamp(13px, 1.3vw, 20px);
       color: #ffffff;
-      min-width: 8vw;
+      min-width: 4vw;
       text-align: right;
+    }
+    .row.rank-1 .pname, .row.rank-2 .pname, .row.rank-3 .pname,
+    .row.rank-1 .pscore, .row.rank-2 .pscore, .row.rank-3 .pscore {
+      font-size: clamp(26px, 3.4vw, 52px);
     }
     .empty-state {
       text-align: center;
@@ -272,26 +288,25 @@ LEADERBOARD_HTML = """
       letter-spacing: 0.1em;
     }
     .qr-hint {
-      position: absolute;
       z-index: 6;
-      bottom: 3vh;
-      right: 3vw;
       display: flex;
+      flex-direction: row;
       align-items: center;
-      gap: 1vw;
-      text-align: right;
+      text-align: left;
+      gap: 1.2vw;
+      margin-top: 3vh;
     }
     .qr-hint .qr-label {
-      font-size: clamp(14px, 1.3vw, 22px);
+      font-size: clamp(23px, 1.1vw, 18px);
       color: white;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      max-width: 12vw;
       line-height: 1.3;
+      max-width: 12vw;
     }
     .qr-hint img {
-      width: clamp(90px, 11vw, 160px);
-      height: clamp(90px, 11vw, 160px);
+      width: clamp(80px, 9vw, 130px);
+      height: clamp(80px, 9vw, 130px);
       background: white;
       padding: 0.6vw;
       border-radius: 12px;
@@ -301,40 +316,57 @@ LEADERBOARD_HTML = """
 </head>
 <body>
   <div class="canvas">
-    <img class="bg-logo" src="{{ url_for('static', filename='maxvs100_logo.png') }}" alt="">
     <div class="checker-strip"></div>
     <div class="header">
       <div class="title">{{ site_title }}</div>
       <div class="subtitle">{{ event_subtitle }}</div>
     </div>
-    <div class="board" id="board"></div>
-    <div class="qr-hint">
-      <div class="qr-label">Scan to<br>submit your score</div>
-      <img src="{{ qr_data_uri }}" alt="QR code to submit your score">
+    <div class="columns">
+      <div class="col-left">
+        <div id="board-top3"></div>
+        <div class="qr-hint">
+          <img src="{{ qr_data_uri }}" alt="QR code to submit your score">
+          <div class="qr-label">Scan to submit your score</div>
+        </div>
+      </div>
+      <div class="col-right" id="board-rest"></div>
     </div>
   </div>
 
   <script>
     const scoreUnit = {{ score_unit|tojson }};
+    const totalSlots = {{ total_slots }};
 
     async function refresh() {
       try {
         const res = await fetch('/api/leaderboard');
         const data = await res.json();
-        const board = document.getElementById('board');
+        const top3Box = document.getElementById('board-top3');
+        const restBox = document.getElementById('board-rest');
 
-        if (data.length === 0) {
-          board.innerHTML = '<div class="empty-state">Be the first on the board — scan the QR code to submit!</div>';
-          return;
+        const slots = Array.from({ length: totalSlots }, (_, i) => data[i] || null);
+
+        function renderRow(r, i) {
+          if (!r) {
+            return `
+              <div class="row row-empty rank-${i+1}">
+                <div class="rank">${i+1}</div>
+                <div class="pname">—</div>
+                <div class="pscore">—</div>
+              </div>
+            `;
+          }
+          return `
+            <div class="row rank-${i+1}" style="animation-delay: ${(i * 0.28).toFixed(2)}s">
+              <div class="rank">${i+1}</div>
+              <div class="pname">${r.name}</div>
+              <div class="pscore">${r.score}${scoreUnit}</div>
+            </div>
+          `;
         }
 
-        board.innerHTML = data.map((r, i) => `
-          <div class="row rank-${i+1}" style="animation-delay: ${(i * 0.28).toFixed(2)}s">
-            <div class="rank">${i+1}</div>
-            <div class="pname">${r.name}</div>
-            <div class="pscore">${r.score}${scoreUnit}</div>
-          </div>
-        `).join('');
+        top3Box.innerHTML = slots.slice(0, 3).map(renderRow).join('');
+        restBox.innerHTML = slots.slice(3).map((r, i) => renderRow(r, i + 3)).join('');
       } catch (e) {
         console.error('leaderboard refresh failed', e);
       }
@@ -506,6 +538,7 @@ def leaderboard():
         score_unit=SCORE_UNIT,
         submit_url=submit_url,
         qr_data_uri=make_qr_data_uri(submit_url),
+        total_slots=LEADERBOARD_LIMIT,
     )
 
 @app.route("/api/leaderboard")
