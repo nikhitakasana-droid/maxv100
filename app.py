@@ -6,12 +6,15 @@ import os
 import uuid
 import time
 import io
+import base64
+import qrcode
+from qrcode.constants import ERROR_CORRECT_H
 
 # ==========================================================
 # CONFIG — tweak these for your event
 # ==========================================================
-SITE_TITLE = "MAX VS 100"
-EVENT_SUBTITLE = "BATAK REACTION CHALLENGE"
+SITE_TITLE = "BATAK CHALLENGE"
+EVENT_SUBTITLE = "WHERE DO YOU RANK AMONG THE 100?"
 LEADERBOARD_LIMIT = 15          # how many rows to show on the big screen
 POLL_SECONDS = 6                # how often the TV display refreshes
 SORT_ASCENDING = True           # True = lowest score wins (reaction time in seconds). Set False if higher score wins.
@@ -86,6 +89,16 @@ def save_photo(file_storage):
 
     return fname
 
+def make_qr_data_uri(url):
+    qr = qrcode.QRCode(error_correction=ERROR_CORRECT_H, box_size=10, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+
 def fetch_leaderboard(limit=None):
     order = "ASC" if SORT_ASCENDING else "DESC"
     conn = get_db()
@@ -106,12 +119,15 @@ LEADERBOARD_HTML = """
   <meta charset="utf-8" />
   <title>{{ site_title }} — Leaderboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
       background: #050a1a;
-      font-family: 'Arial Black', 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Jost', system-ui, sans-serif; font-weight: 600;
       overflow: hidden;
     }
     .canvas {
@@ -132,37 +148,78 @@ LEADERBOARD_HTML = """
       background-image: repeating-conic-gradient(#ffffff 0% 25%, #0b1636 0% 50%);
       background-size: 28px 28px;
       opacity: 0.9;
+      z-index: 6;
+    }
+    .bg-logo {
+      position: absolute;
+      left: -6%;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 120vh;
+      width: auto;
+      max-width: none;
+      opacity: 0.5;
+      z-index: 1;
+      pointer-events: none;
+      filter: drop-shadow(0 30px 70px rgba(0,0,0,0.7));
+    }
+    @keyframes textShimmer {
+      0%   { background-position: -120% 0; }
+      100% { background-position: 220% 0; }
     }
     .header {
+      position: relative;
+      z-index: 6;
+      width: min(74vw, 1350px);
+      margin: 0 4vw 0 auto;
       text-align: center;
-      padding-top: 4.5vh;
-    }
-    .header .brand {
-      font-size: clamp(28px, 3.2vw, 48px);
-      letter-spacing: 0.35em;
-      color: #ff2436;
-      text-shadow: 0 0 18px rgba(255,36,54,0.55);
+      padding-top: 7vh;
     }
     .header .title {
+      font-family: 'Jost', sans-serif; font-weight: 600;
       margin-top: 0.6vh;
       font-size: clamp(38px, 6vw, 88px);
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      text-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      text-shadow: 0 0 24px rgba(255,36,54,0.5), 0 8px 24px rgba(0,0,0,0.6);
+
+      background: linear-gradient(100deg, #ff2436 35%, #ffc2c8 50%, #ff2436 65%);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      animation: textShimmer 8s linear infinite;
     }
     .subtitle {
+      font-family: 'Jost', sans-serif; font-weight: 600;
       margin-top: 0.5vh;
       font-size: clamp(16px, 1.6vw, 26px);
-      color: #9db3ff;
       letter-spacing: 0.15em;
       text-transform: uppercase;
+
+      background: linear-gradient(100deg, #9db3ff 35%, #e8edff 50%, #9db3ff 65%);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      animation: textShimmer 8s linear infinite;
     }
     .board {
-      margin: 3vh auto 0 auto;
-      width: min(80vw, 1400px);
+      position: relative;
+      z-index: 6;
+      margin: 3vh 4vw 0 auto;
+      width: min(74vw, 1350px);
       display: flex;
       flex-direction: column;
       gap: 1vh;
+    }
+    @keyframes rowEmphasize {
+      0%   { transform: scale(1); filter: brightness(1); box-shadow: none; }
+      4%   { transform: scale(1.035); filter: brightness(1.3); box-shadow: 0 0 34px rgba(255,255,255,0.4); }
+      11%  { transform: scale(1); filter: brightness(1); box-shadow: none; }
+      100% { transform: scale(1); filter: brightness(1); box-shadow: none; }
     }
     .row {
       display: flex;
@@ -170,16 +227,20 @@ LEADERBOARD_HTML = """
       gap: 2vw;
       padding: 1.1vh 2vw;
       border-radius: 999px;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(4, 8, 20, 0.72);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(2px);
       transition: transform 0.3s ease, background 0.3s ease;
+      transform-origin: center;
+      animation: rowEmphasize 7s ease-in-out infinite;
     }
-    .row.rank-1 { background: linear-gradient(90deg, rgba(255,215,80,0.25), rgba(255,255,255,0.05)); border-color: rgba(255,215,80,0.5); }
-    .row.rank-2 { background: linear-gradient(90deg, rgba(210,210,220,0.2), rgba(255,255,255,0.05)); border-color: rgba(210,210,220,0.4); }
-    .row.rank-3 { background: linear-gradient(90deg, rgba(205,140,80,0.22), rgba(255,255,255,0.05)); border-color: rgba(205,140,80,0.45); }
+    .row.rank-1 { background: linear-gradient(90deg, rgba(255,215,80,0.32), rgba(4,8,20,0.72)); border-color: rgba(255,215,80,0.55); }
+    .row.rank-2 { background: linear-gradient(90deg, rgba(210,210,220,0.28), rgba(4,8,20,0.72)); border-color: rgba(210,210,220,0.45); }
+    .row.rank-3 { background: linear-gradient(90deg, rgba(205,140,80,0.3), rgba(4,8,20,0.72)); border-color: rgba(205,140,80,0.5); }
     .rank {
       width: 3.2vw;
       min-width: 44px;
+      font-family: 'Jost', sans-serif; font-weight: 600;
       font-size: clamp(18px, 2.2vw, 32px);
       color: #ff2436;
       text-align: center;
@@ -189,6 +250,7 @@ LEADERBOARD_HTML = """
     .row.rank-3 .rank { color: #cd8c50; }
     .pname {
       flex: 1;
+      font-weight: 600;
       font-size: clamp(18px, 2.3vw, 34px);
       white-space: nowrap;
       overflow: hidden;
@@ -196,6 +258,7 @@ LEADERBOARD_HTML = """
     }
     .pscore {
       font-variant-numeric: tabular-nums;
+      font-weight: 600;
       font-size: clamp(18px, 2.3vw, 34px);
       color: #ffffff;
       min-width: 8vw;
@@ -210,27 +273,45 @@ LEADERBOARD_HTML = """
     }
     .qr-hint {
       position: absolute;
+      z-index: 6;
       bottom: 3vh;
       right: 3vw;
+      display: flex;
+      align-items: center;
+      gap: 1vw;
       text-align: right;
-      font-size: clamp(14px, 1.3vw, 20px);
-      color: #9db3ff;
+    }
+    .qr-hint .qr-label {
+      font-size: clamp(14px, 1.3vw, 22px);
+      color: white;
       letter-spacing: 0.08em;
       text-transform: uppercase;
+      max-width: 12vw;
+      line-height: 1.3;
     }
-    .qr-hint span { display: block; color: white; font-size: 1.3em; margin-top: 0.3vh; }
+    .qr-hint img {
+      width: clamp(90px, 11vw, 160px);
+      height: clamp(90px, 11vw, 160px);
+      background: white;
+      padding: 0.6vw;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
   </style>
 </head>
 <body>
   <div class="canvas">
+    <img class="bg-logo" src="{{ url_for('static', filename='maxvs100_logo.png') }}" alt="">
     <div class="checker-strip"></div>
     <div class="header">
-      <div class="brand">RED BULL</div>
       <div class="title">{{ site_title }}</div>
       <div class="subtitle">{{ event_subtitle }}</div>
     </div>
     <div class="board" id="board"></div>
-    <div class="qr-hint">Scan to submit your score<span>{{ submit_url }}</span></div>
+    <div class="qr-hint">
+      <div class="qr-label">Scan to<br>submit your score</div>
+      <img src="{{ qr_data_uri }}" alt="QR code to submit your score">
+    </div>
   </div>
 
   <script>
@@ -248,7 +329,7 @@ LEADERBOARD_HTML = """
         }
 
         board.innerHTML = data.map((r, i) => `
-          <div class="row rank-${i+1}">
+          <div class="row rank-${i+1}" style="animation-delay: ${(i * 0.28).toFixed(2)}s">
             <div class="rank">${i+1}</div>
             <div class="pname">${r.name}</div>
             <div class="pscore">${r.score.toFixed(2)}${scoreUnit}</div>
@@ -273,25 +354,28 @@ SUBMIT_HTML = """
   <meta charset="utf-8" />
   <title>Submit your score — {{ site_title }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@600&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
       background: linear-gradient(160deg, #040816 0%, #0b1636 60%, #150316 100%);
-      font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Jost', system-ui, sans-serif; font-weight: 600;
       color: white;
       display: flex;
       justify-content: center;
     }
     .wrap { width: 100%; max-width: 480px; padding: 32px 20px 60px 20px; }
-    .brand { text-align: center; color: #ff2436; letter-spacing: 0.3em; font-weight: 700; font-size: 14px; }
-    h1 { text-align: center; margin: 6px 0 2px 0; font-size: 28px; letter-spacing: 0.03em; }
-    .sub { text-align: center; color: #9db3ff; margin-bottom: 28px; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
-    label { display: block; margin: 18px 0 6px 0; font-size: 14px; color: #cbd5f5; letter-spacing: 0.04em; }
+    .brand { font-family: 'Jost', sans-serif; text-align: center; color: #ff2436; letter-spacing: 0.3em; font-weight: 600; font-size: 14px; }
+    h1 { font-family: 'Jost', sans-serif; font-weight: 600; text-align: center; margin: 6px 0 2px 0; font-size: 32px; letter-spacing: 0.03em; }
+    .sub { text-align: center; color: #9db3ff; margin-bottom: 28px; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; }
+    label { display: block; margin: 18px 0 6px 0; font-size: 14px; color: #cbd5f5; letter-spacing: 0.04em; font-weight: 600; }
     input[type=text], input[type=number] {
       width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.06); color: white; font-size: 18px;
+      background: rgba(255,255,255,0.06); color: white; font-size: 18px; font-family: 'Jost', system-ui, sans-serif; font-weight: 600;
     }
     input[type=file] {
       width: 100%; padding: 14px 0; color: #cbd5f5; font-size: 15px;
@@ -300,7 +384,7 @@ SUBMIT_HTML = """
     button {
       width: 100%; margin-top: 28px; padding: 16px; border: none; border-radius: 999px;
       background: linear-gradient(90deg, #ff2436, #d40018);
-      color: white; font-size: 18px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: white; font-family: 'Jost', sans-serif; font-size: 18px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
     }
     .error { background: rgba(255,36,54,0.15); border: 1px solid rgba(255,36,54,0.4); padding: 12px 16px; border-radius: 10px; margin-top: 20px; font-size: 14px; }
     .success { background: rgba(60,200,120,0.15); border: 1px solid rgba(60,200,120,0.4); padding: 16px; border-radius: 10px; margin-top: 20px; font-size: 15px; text-align: center; }
@@ -393,7 +477,7 @@ ADMIN_LOGIN_HTML = """
 body { font-family: system-ui, sans-serif; background: #0b1020; color: white; display:flex; justify-content:center; align-items:center; height:100vh; margin:0; }
 form { background: rgba(255,255,255,0.06); padding: 32px; border-radius: 14px; width: 280px; }
 input { width: 100%; padding: 12px; margin-top: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.05); color:white; }
-button { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; background: #d40018; color: white; font-weight: 700; }
+button { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 8px; background: #d40018; color: white; font-family: 'Jost', sans-serif; font-weight: 600; }
 .error { color: #ff8a94; font-size: 13px; margin-top: 10px; }
 </style>
 </head>
@@ -421,6 +505,7 @@ def leaderboard():
         poll_seconds=POLL_SECONDS,
         score_unit=SCORE_UNIT,
         submit_url=submit_url,
+        qr_data_uri=make_qr_data_uri(submit_url),
     )
 
 @app.route("/api/leaderboard")
