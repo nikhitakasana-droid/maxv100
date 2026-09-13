@@ -324,7 +324,7 @@ LEADERBOARD_HTML = """
         const board = document.getElementById('board');
 
         if (data.length === 0) {
-          board.innerHTML = '<div class="empty-state">Be the first to set a time — scan the QR code to submit!</div>';
+          board.innerHTML = '<div class="empty-state">Be the first on the board — scan the QR code to submit!</div>';
           return;
         }
 
