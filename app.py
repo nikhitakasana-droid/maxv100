@@ -17,12 +17,12 @@ SITE_TITLE = "BATAK CHALLENGE"
 EVENT_SUBTITLE = "WHERE DO YOU RANK AMONG THE 100?"
 LEADERBOARD_LIMIT = 15          # how many rows to show on the big screen
 POLL_SECONDS = 6                # how often the TV display refreshes
-SORT_ASCENDING = True           # True = lowest score wins (reaction time in seconds). Set False if higher score wins.
-SCORE_LABEL = "TIME (s)"        # label shown next to the score column
-SCORE_UNIT = "s"                # appended after each score, e.g. "12.34s"
+SORT_ASCENDING = False          # True = lowest score wins (e.g. reaction time). Set False if higher score wins.
+SCORE_LABEL = "HITS"            # label shown next to the score column
+SCORE_UNIT = ""                 # appended after each score (blank for a plain hit count)
 MAX_NAME_LEN = 24
-MIN_SCORE = 0.0
-MAX_SCORE = 999.0
+MIN_SCORE = 0
+MAX_SCORE = 150
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic", "heif"}
 MAX_UPLOAD_MB = 15
 SUBMIT_COOLDOWN_SECONDS = 8     # basic per-IP throttle to stop accidental double-taps
@@ -332,7 +332,7 @@ LEADERBOARD_HTML = """
           <div class="row rank-${i+1}" style="animation-delay: ${(i * 0.28).toFixed(2)}s">
             <div class="rank">${i+1}</div>
             <div class="pname">${r.name}</div>
-            <div class="pscore">${r.score.toFixed(2)}${scoreUnit}</div>
+            <div class="pscore">${r.score}${scoreUnit}</div>
           </div>
         `).join('');
       } catch (e) {
@@ -407,8 +407,8 @@ SUBMIT_HTML = """
         <input type="text" name="name" maxlength="{{ max_name_len }}" required placeholder="e.g. Alex" value="{{ old_name or '' }}">
 
         <label>Your {{ score_label }}</label>
-        <input type="number" name="score" step="0.01" min="{{ min_score }}" max="{{ max_score }}" required placeholder="e.g. 12.34" value="{{ old_score or '' }}">
-        <div class="hint">Enter it exactly as shown on the Batak screen.</div>
+        <input type="number" name="score" step="1" min="{{ min_score }}" max="{{ max_score }}" required placeholder="e.g. 42" value="{{ old_score or '' }}">
+        <div class="hint">Enter the number of hits shown on the Batak screen.</div>
 
         <label>Photo of your score (recommended)</label>
         <input type="file" name="photo" accept="image/*" capture="environment">
@@ -448,7 +448,7 @@ ADMIN_HTML = """
     <tr>
       <td>{{ loop.index }}</td>
       <td>{{ r.name }}</td>
-      <td>{{ '%.2f'|format(r.score) }}</td>
+      <td>{{ r.score | int }}</td>
       <td>
         {% if r.photo_filename %}
           <a class="photo-link" href="{{ url_for('static', filename='uploads/' + r.photo_filename) }}" target="_blank">
@@ -552,9 +552,9 @@ def submit():
         error = f"Name must be {MAX_NAME_LEN} characters or fewer."
     else:
         try:
-            score_val = float(score_raw)
+            score_val = int(score_raw)
         except (TypeError, ValueError):
-            error = "Please enter a valid score."
+            error = "Please enter a whole number of hits."
 
     if not error and score_val is not None:
         if score_val < MIN_SCORE or score_val > MAX_SCORE:
@@ -589,7 +589,7 @@ def submit():
         SUBMIT_HTML, site_title=SITE_TITLE, event_subtitle=EVENT_SUBTITLE,
         score_label=SCORE_LABEL, score_unit=SCORE_UNIT, max_name_len=MAX_NAME_LEN,
         min_score=MIN_SCORE, max_score=MAX_SCORE,
-        success=True, success_name=name, success_score=f"{score_val:.2f}",
+        success=True, success_name=name, success_score=str(score_val),
     )
 
 # ---------- Admin (basic password-protected cleanup panel) ----------
