@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string, redirect, url_for, send_from_directory, session
+from flask import Flask, request, jsonify, render_template_string, redirect, url_for, send_from_directory, session, Response
 from werkzeug.utils import secure_filename
 from PIL import Image, ImageOps
 import sqlite3
@@ -6,6 +6,7 @@ import os
 import uuid
 import time
 import io
+import csv
 import base64
 import qrcode
 from qrcode.constants import ERROR_CORRECT_H
@@ -488,10 +489,22 @@ ADMIN_HTML = """
     form.delete { display: inline; }
     button.del { background: #d40018; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
     a.photo-link { color: #9db3ff; }
+    a.export-link {
+      display: inline-block;
+      margin-top: 12px;
+      padding: 10px 18px;
+      background: #1a2440;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 14px;
+      border: 1px solid rgba(255,255,255,0.15);
+    }
   </style>
 </head>
 <body>
   <h1>{{ site_title }} — Admin ({{ rows|length }} entries)</h1>
+  <a class="export-link" href="{{ url_for('admin_export') }}">⬇ Export as CSV</a>
   <table>
     <tr><th>Rank-order</th><th>Name</th><th>Score</th><th>Photo</th><th>Submitted</th><th></th></tr>
     {% for r in rows %}
@@ -663,6 +676,28 @@ def admin():
         enriched.append(d)
 
     return render_template_string(ADMIN_HTML, site_title=SITE_TITLE, rows=enriched)
+
+@app.route("/admin/export.csv")
+def admin_export():
+    if not session.get("is_admin"):
+        return redirect(url_for("admin"))
+
+    rows = fetch_leaderboard(limit=None)
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["rank", "name", "score", "photo_filename", "submitted_at"])
+    for i, r in enumerate(rows):
+        submitted_at = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(r["created_at"]))
+        writer.writerow([i + 1, r["name"], r["score"], r["photo_filename"] or "", submitted_at])
+
+    csv_data = buf.getvalue()
+    filename = f"{SITE_TITLE.lower().replace(' ', '-')}-leaderboard.csv"
+    return Response(
+        csv_data,
+        mimetype="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 @app.route("/admin/delete/<submission_id>", methods=["POST"])
 def admin_delete(submission_id):
