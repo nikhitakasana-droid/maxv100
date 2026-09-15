@@ -27,7 +27,7 @@ MAX_SCORE = 150
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic", "heif"}
 MAX_UPLOAD_MB = 15
 SUBMIT_COOLDOWN_SECONDS = 8     # basic per-IP throttle to stop accidental double-taps
-SCREEN1_VIDEO_FILENAME = "screen1.mp4"  # put your video file at static/screen1.mp4
+SCREEN1_VIDEO_URL = os.environ.get("SCREEN1_VIDEO_URL", "")  # direct link to an mp4 file (set as an env var on your host)
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")  # set this as an env var on your host!
 
@@ -515,7 +515,7 @@ SCREEN1_HTML = """
       <source src="{{ video_url }}" type="video/mp4">
     </video>
   {% else %}
-    <div class="missing">No video found yet — add one at static/{{ video_filename }} and refresh this page.</div>
+    <div class="missing">Oh no, looks like this TV needs a Red Bull.</div>
   {% endif %}
 </body>
 </html>
@@ -622,14 +622,11 @@ def leaderboard():
 
 @app.route("/screen1")
 def screen1():
-    video_path = os.path.join(BASE_DIR, "static", SCREEN1_VIDEO_FILENAME)
-    video_exists = os.path.isfile(video_path)
     return render_template_string(
         SCREEN1_HTML,
         site_title=SITE_TITLE,
-        video_exists=video_exists,
-        video_filename=SCREEN1_VIDEO_FILENAME,
-        video_url=url_for("static", filename=SCREEN1_VIDEO_FILENAME) if video_exists else None,
+        video_exists=bool(SCREEN1_VIDEO_URL),
+        video_url=SCREEN1_VIDEO_URL,
     )
 
 @app.route("/api/leaderboard")
