@@ -27,6 +27,7 @@ MAX_SCORE = 150
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "heic", "heif"}
 MAX_UPLOAD_MB = 15
 SUBMIT_COOLDOWN_SECONDS = 8     # basic per-IP throttle to stop accidental double-taps
+SCREEN1_VIDEO_FILENAME = "screen1.mp4"  # put your video file at static/screen1.mp4
 
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")  # set this as an env var on your host!
 
@@ -473,6 +474,53 @@ SUBMIT_HTML = """
 </html>
 """
 
+SCREEN1_HTML = """
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>{{ site_title }} — Screen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    video {
+      width: 100vw;
+      height: 100vh;
+      object-fit: cover;
+      display: block;
+    }
+    .missing {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #9db3ff;
+      font-family: system-ui, sans-serif;
+      font-size: clamp(16px, 2vw, 24px);
+      text-align: center;
+      padding: 0 5vw;
+    }
+  </style>
+</head>
+<body>
+  {% if video_exists %}
+    <video autoplay muted loop playsinline>
+      <source src="{{ video_url }}" type="video/mp4">
+    </video>
+  {% else %}
+    <div class="missing">No video found yet — add one at static/{{ video_filename }} and refresh this page.</div>
+  {% endif %}
+</body>
+</html>
+"""
+
 ADMIN_HTML = """
 <!doctype html>
 <html>
@@ -570,6 +618,18 @@ def leaderboard():
         submit_url=submit_url,
         qr_data_uri=make_qr_data_uri(submit_url),
         total_slots=LEADERBOARD_LIMIT,
+    )
+
+@app.route("/screen1")
+def screen1():
+    video_path = os.path.join(BASE_DIR, "static", SCREEN1_VIDEO_FILENAME)
+    video_exists = os.path.isfile(video_path)
+    return render_template_string(
+        SCREEN1_HTML,
+        site_title=SITE_TITLE,
+        video_exists=video_exists,
+        video_filename=SCREEN1_VIDEO_FILENAME,
+        video_url=url_for("static", filename=SCREEN1_VIDEO_FILENAME) if video_exists else None,
     )
 
 @app.route("/api/leaderboard")
